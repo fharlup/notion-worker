@@ -101,6 +101,8 @@ export default {
               `Semangat kerjainnya ya\\! 💪\n\n` +
               `🚀 [Buka Notion](${esc(task.url)})`;
 
+            console.log("anjiong")
+
             await fetch(`https://api.telegram.org/bot${env.TG_TOKEN}/sendMessage`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -131,3 +133,4 @@ export default {
     }
   }
 };
+
