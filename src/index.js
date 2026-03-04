@@ -13,15 +13,13 @@ export default {
     ctx.waitUntil(this.runBotLogic(env, false));
   },
 
-  
   async runBotLogic(env, isStartup = false) {
-    const SPAM_MODE = false; 
-
     const esc = (t) => t ? t.toString().replace(/[_*\[\]()~`>#+\-=|{}.!]/g, '\\$&') : "";
-    console.log("--- Memulai Logika Bot (Mode Rangkuman Anti-Spam) ---");
+    //regex biar clear aja karena kalo nga bakal error 
+    console.log("--- Memulai Logika Bot ---");
 
     try {
-      // 1. Ambil daftar user dari database 'teleid'
+      //cek user di db nya ada siapa aja
       const registryRes = await fetch(`https://api.notion.com/v1/databases/${env.REGISTRY_DB_ID}/query`, {
         method: 'POST',
         headers: {
@@ -32,7 +30,8 @@ export default {
       });
       const registryData = await registryRes.json();
       const users = registryData.results || [];
-      
+      console.log(`Ditemukan ${users.length} user di Registry.`);
+
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
@@ -41,23 +40,14 @@ export default {
         const name = user.properties["name"]?.title[0]?.plain_text || "User";
         const notionPerson = user.properties["Person"]?.people[0];
 
-        if (!tgId) continue;
-
-        // Pesan Debugging (Spam) jika diaktifkan
-        if (SPAM_MODE || isStartup) {
-          await fetch(`https://api.telegram.org/bot${env.TG_TOKEN}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: tgId,
-              text: `🛰️ *Debug:* Bot mengecek tugas untuk ${esc(name)}\\.`,
-              parse_mode: "MarkdownV2"
-            })
-          });
+        if (!tgId) {
+          console.log(`Skip user ${name}: ID Telegram tidak ditemukan.`);
+          continue;
         }
 
         if (notionPerson) {
-          // 2. Ambil tugas yang 'Assigned To' user ini & Status belum 'Done'
+          console.log(`Mengecek tugas untuk: ${name} (Notion ID: ${notionPerson.id})`);
+         //cek di db task nya 
           const tasksRes = await fetch(`https://api.notion.com/v1/databases/${env.TASK_DB_ID}/query`, {
             method: 'POST',
             headers: {
@@ -68,8 +58,8 @@ export default {
             body: JSON.stringify({
               filter: {
                 and: [
-                  { property: "Status", status: { does_not_equal: "Done" } },
-                  { property: "Assigned To", people: { contains: notionPerson.id } }
+                  { property: "Assigned To", people: { contains: notionPerson.id } },
+                  { property: "Status", status: { does_not_equal: "Done" } }
                 ]
               }
             })
@@ -77,56 +67,40 @@ export default {
 
           const tasksData = await tasksRes.json();
           const tasks = tasksData.results || [];
-          
-          let taskSummary = []; 
+          console.log(`Ditemukan ${tasks.length} tugas belum selesai.`);
 
           for (const task of tasks) {
             const taskTitle = task.properties.name?.title[0]?.plain_text || "Untitled";
             const dueDateStr = task.properties["Due Date"]?.date?.start;
-            const dayRemind = task.properties["dayremind"]?.number || 1; //
+            const dayRemindText = task.properties["dayremind"]?.rich_text?.[0]?.plain_text;
+            const dayRemind = parseInt(dayRemindText) || 1;
 
             if (!dueDateStr) continue;
 
             const dueDate = new Date(dueDateStr);
             dueDate.setHours(0, 0, 0, 0);
 
-            // Hitung selisih hari
             const diffTime = dueDate.getTime() - today.getTime();
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-            // Jika sisa hari masuk dalam rentang pengingat
-            if (diffDays >= 0 && diffDays <= dayRemind) {
-              const statusIcon = diffDays === 0 ? "🚨" : "⚠️";
-              const statusTxt = diffDays === 0 ? "*HARI INI DEADLINE!!*" : `*${diffDays} HARI LAGI!*`;
+            console.log(`Tugas: ${taskTitle} | H-${diffDays} | Setting: ${dayRemind}`);
+
+            if (diffDays <= dayRemind && diffDays >= 0) {
+              const statusMsg = diffDays === 0 ? "🚨 HARI INI DEADLINE!!" : `⚠️ ${diffDays} HARI LAGI!`;
               
-              // Masukkan data ke array (bukan langsung kirim pesan)
-              taskSummary.push(
-                `${statusIcon} *${esc(taskTitle.toUpperCase())}*\n` +
-                `⏰ STATUS: ${esc(statusTxt)}\n` +
-                `📅 DEADLINE: ${esc(dueDateStr)}\n` +
-                `🚀 [BUKA NOTION](${esc(task.url)})`
-              );
+              const tgRes = await fetch(`https://api.telegram.org/bot${env.TG_TOKEN}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  chat_id: tgId,
+                  text: `📢 *PENGINGAT DEADLINE*\n\n🔥 *${esc(taskTitle.toUpperCase())}*\n⏰ *STATUS:* ${esc(statusMsg)}\n📅 *DEADLINE:* ${esc(dueDateStr)}\n⚙️ *SETTING:* H\\-${dayRemind}\n\n🚀 [BUKA NOTION](${esc(task.url)})`,
+                  parse_mode: "MarkdownV2"
+                })
+              });
+              
+              const tgStatus = await tgRes.json();
+              if (!tgStatus.ok) console.error("Gagal kirim Telegram:", tgStatus.description);
             }
-          }
-
-          // --- 3. KIRIM HANYA SATU PESAN RANGKUMAN ---
-          if (taskSummary.length > 0) {
-            const finalMessage = `📢 *PENGINGAT DEADLINE HARIAN*\n\nHalo ${esc(name)}, berikut daftar tugasmu:\n\n` + 
-                                 taskSummary.join("\n\n\\-\\-\\-\n\n");
-
-            const tgRes = await fetch(`https://api.telegram.org/bot${env.TG_TOKEN}/sendMessage`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                chat_id: tgId,
-                text: finalMessage,
-                parse_mode: "MarkdownV2",
-                disable_web_page_preview: true
-              })
-            });
-            
-            const tgStatus = await tgRes.json();
-            if (!tgStatus.ok) console.error("Gagal kirim Telegram:", tgStatus.description);
           }
         }
       }

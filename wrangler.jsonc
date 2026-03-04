@@ -3,7 +3,8 @@
   "main": "src/index.js",
   "compatibility_date": "2024-01-01",
   "triggers": {
-    "crons": ["* 2 * * *"]
+
+    "crons": ["50 7 * * *"]
     //ini kapan di jalanin nya 
     // pake utc nya kan +7 untuk wib dan jika di + 2 berati jam 9
     // bisa di ganti jam berapa dengna tweak + nya

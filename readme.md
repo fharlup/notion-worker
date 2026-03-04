@@ -106,42 +106,17 @@ REGISTRY_DB_ID	ID database Registry
 TASK_DB_ID	ID database Task
 TG_TOKEN	Token API dari BotFather
 🖥️ Cara Deploy
-1️⃣ Buat Worker
+wrangler secret put NOTION_TOKEN
+# Masukkan Internal Integration Token dari Notion
 
-Buka Dashboard Cloudflare
+wrangler secret put TG_TOKEN
+# Masukkan Token API dari BotFather
 
-Buat Worker baru
 
-2️⃣ Edit Code
+npx wrangler login
 
-Salin isi index.js
 
-Paste ke editor Cloudflare
-
-3️⃣ Deploy
-
-Klik:
-
-Save and Deploy
-⏰ 4️⃣ Set Jadwal (Cron Trigger)
-
-Masuk ke:
-
-Settings > Triggers
-
-Klik:
-
-Add Cron Trigger
-
-Masukkan jadwal
-
-Contoh:
-Jam 9 pagi WIB
-
-0 2 * * *
-
-(Format UTC — WIB = UTC+7)
-
+npx wrangler deploy
 🔄 Cara Kerja Singkat
 
 Worker berjalan sesuai jadwal (cron).
