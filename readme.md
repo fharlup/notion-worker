@@ -157,3 +157,42 @@ Notion Registry DB
 Telegram Bot API
         ↓
 User Telegram
+
+
+1. Buat Integrasi di Notion Developers
+Buka halaman notion.so/my-integrations di browser kamu.
+
+Klik tombol "+ New integration".
+
+Isi bagian Basic Information:
+
+Name: Beri nama bebas (misalnya: Reminder Bot Fajar).
+
+Workspace: Pilih workspace tempat database tugas kamu berada.
+
+Pada bagian Capabilities, pastikan bot memiliki akses Read content (Wajib) dan Update content (Opsional, jika nanti mau bot bisa mengubah status).
+
+Klik Submit.
+
+2. Salin Internal Integration Token
+Setelah di-submit, kamu akan diarahkan ke halaman konfigurasi integrasi tersebut.
+
+Cari bagian Internal Integration Secret.
+
+Klik "Show" lalu "Copy". Inilah yang akan menjadi NOTION_TOKEN kamu.
+
+3. Langkah Krusial: Hubungkan ke Database (Invite Connection)
+Token tadi tidak akan berfungsi jika database kamu belum "kenal" dengan bot-nya.
+
+Buka database Registry dan Task kamu di Notion.
+
+Klik titik tiga (...) di pojok kanan atas halaman database.
+
+Cari menu "Connections" (atau "Add connections").
+
+Ketik nama integrasi yang kamu buat tadi (misal: Reminder Bot Fajar) lalu klik Confirm.
+
+Lakukan hal yang sama untuk kedua database agar bot tidak kena error 404 lagi.
+
+4. Simpan ke Cloudflare via CLI
+Setelah dapat tokennya, segera masukkan ke Worker kamu menggunakan Wrangler agar aman:
